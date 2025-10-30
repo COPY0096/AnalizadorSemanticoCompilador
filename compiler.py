@@ -1,37 +1,73 @@
+#!/usr/bin/env python3
+"""
+compiler.py
+Analizador léxico + sintáctico + semántico simple usando PLY.
+
+Uso:
+    python compiler.py programa.txt
+
+Lenguaje soportado (mini):
+- Declaraciones: int id;  float id;  int id = expr;
+- Asignaciones: id = expr;
+- Expresiones: suma/resta/mul/div, números enteros y reales, paréntesis, identificadores
+- Comentarios: // hasta fin de línea
+
+Chequeos semánticos:
+- variable no declarada
+- redeclaración
+- incompatibilidad de tipos (float -> int) => error
+- promoción automática int -> float aceptada
+"""
+
+import sys
 import ply.lex as lex
 import ply.yacc as yacc
 
-# -----------------------------
+# ------------------------
 # LÉXICO
-# -----------------------------
-
+# ------------------------
 tokens = (
-    'INT', 'FLOAT', 'ID', 'NUM_INT', 'NUM_FLOAT',
-    'ASSIGN', 'SEMI', 'PLUS', 'MINUS', 'MUL', 'DIV'
+    'INT_KW', 'FLOAT_KW',
+    'ID',
+    'NUM_INT', 'NUM_FLOAT',
+    'ASSIGN', 'SEMI',
+    'PLUS', 'MINUS', 'TIMES', 'DIV',
+    'LPAREN', 'RPAREN'
 )
 
 reserved = {
-    'int': 'INT',
-    'float': 'FLOAT'
+    'int': 'INT_KW',
+    'float': 'FLOAT_KW'
 }
 
 t_ASSIGN = r'='
-t_SEMI   = r';'
-t_PLUS   = r'\+'
-t_MINUS  = r'-'
-t_MUL    = r'\*'
-t_DIV    = r'/'
+t_SEMI  = r';'
+t_PLUS  = r'\+'
+t_MINUS = r'-'
+t_TIMES = r'\*'
+t_DIV   = r'/'
+t_LPAREN = r'\('
+t_RPAREN = r'\)'
 
 t_ignore = ' \t'
+
+# Keep track of line numbers and simple column calculation
+def find_column(input, lexpos):
+    last_cr = input.rfind('\n', 0, lexpos)
+    if last_cr < 0:
+        last_cr = -1
+    return (lexpos - last_cr)
 
 def t_NUM_FLOAT(t):
     r'\d+\.\d+'
     t.value = float(t.value)
+    t.type = 'NUM_FLOAT'
     return t
 
 def t_NUM_INT(t):
     r'\d+'
     t.value = int(t.value)
+    t.type = 'NUM_INT'
     return t
 
 def t_ID(t):
@@ -39,154 +75,251 @@ def t_ID(t):
     t.type = reserved.get(t.value, 'ID')
     return t
 
+def t_COMMENT(t):
+    r'\/\/.*'
+    pass
+
 def t_newline(t):
     r'\n+'
-    t.lexer.lineno += len(t.value)
+    t.lexer.lineno += t.value.count("\n")
 
 def t_error(t):
-    print(f"Error léxico: carácter ilegal '{t.value[0]}' en línea {t.lexer.lineno}")
+    col = find_column(t.lexer.lexdata, t.lexpos)
+    print(f"[Lexical error] Line {t.lineno}, col {col}: Illegal character '{t.value[0]}'")
     t.lexer.skip(1)
 
+# Build lexer
 lexer = lex.lex()
 
-# -----------------------------
-# SINTAXIS
-# -----------------------------
+# ------------------------
+# SEMÁNTICA / TIPOS
+# ------------------------
+TYPE_INT = 'int'
+TYPE_FLOAT = 'float'
+TYPE_ERROR = 'error'
 
-# Tipos de datos (tabla de símbolos)
+# symbol table: name -> {'type': TYPE_..., 'line': n}
 symbol_table = {}
 
-# Precedencia (para +, -, *, /)
+# record semantic errors
+semantic_errors = []
+
+def sym_declare(name, typ, lineno):
+    if name in symbol_table:
+        semantic_errors.append((lineno, f"Redeclaration of variable '{name}' (previously declared at line {symbol_table[name]['line']})"))
+        return False
+    symbol_table[name] = {'type': typ, 'line': lineno}
+    return True
+
+def sym_exists(name):
+    return name in symbol_table
+
+def sym_get_type(name):
+    if name in symbol_table:
+        return symbol_table[name]['type']
+    return TYPE_ERROR
+
+def type_name(t):
+    return t
+
+def result_type(t1, t2):
+    if TYPE_ERROR in (t1, t2): return TYPE_ERROR
+    if TYPE_FLOAT in (t1, t2): return TYPE_FLOAT
+    return TYPE_INT
+
+def compatible(dest, src):
+    """Dest <- Src"""
+    if dest == TYPE_ERROR or src == TYPE_ERROR: return False
+    if dest == src: return True
+    if dest == TYPE_FLOAT and src == TYPE_INT: return True  # allow promotion
+    return False
+
+# ------------------------
+# SINTAXIS (GRAMÁTICA)
+# ------------------------
 precedence = (
     ('left', 'PLUS', 'MINUS'),
-    ('left', 'MUL', 'DIV'),
+    ('left', 'TIMES', 'DIV'),
 )
 
 def p_program(p):
-    '''program : stmt_list'''
-    print("✅ Análisis sintáctico y semántico completado sin errores.")
+    "program : stmt_list"
+    p[0] = ('program', p[1])
 
-def p_stmt_list(p):
-    '''stmt_list : stmt_list stmt
-                 | stmt'''
+def p_stmt_list_multi(p):
+    "stmt_list : stmt_list stmt"
+    p[0] = p[1] + [p[2]]
 
-def p_stmt(p):
-    '''stmt : declaration
-            | assignment'''
+def p_stmt_list_single(p):
+    "stmt_list : stmt"
+    p[0] = [p[1]]
 
-# --- Declaraciones ---
-def p_declaration(p):
-    '''declaration : type ID SEMI
-                   | type ID ASSIGN expression SEMI'''
-    var_type = p[1]
-    var_name = p[2]
-
-    if var_name in symbol_table:
-        print(f"Error semántico: variable '{var_name}' ya declarada.")
-    else:
-        symbol_table[var_name] = var_type
-
-    # Asignación inicial (opcional)
-    if len(p) == 6:
-        expr_type = p[4]
-        if not compatible(var_type, expr_type):
-            print(f"Error de tipo: no se puede asignar {expr_type} a {var_type} ({var_name})")
-
-# --- Asignaciones ---
-def p_assignment(p):
-    '''assignment : ID ASSIGN expression SEMI'''
-    var_name = p[1]
-    if var_name not in symbol_table:
-        print(f"Error semántico: variable '{var_name}' no declarada.")
-    else:
-        var_type = symbol_table[var_name]
-        expr_type = p[3]
-        if not compatible(var_type, expr_type):
-            print(f"Error de tipo: no se puede asignar {expr_type} a {var_type} ({var_name})")
-
-# --- Tipos ---
-def p_type(p):
-    '''type : INT
-            | FLOAT'''
+def p_stmt_decl(p):
+    "stmt : decl SEMI"
     p[0] = p[1]
 
-# --- Expresiones ---
+def p_stmt_assign(p):
+    "stmt : assign SEMI"
+    p[0] = p[1]
+
+# declaration: type ID [= expr] ;
+def p_decl_noassign(p):
+    "decl : type ID"
+    typ = p[1]
+    name = p[2]
+    lineno = p.lineno(2)
+    sym_declare(name, typ, lineno)
+    p[0] = ('decl', typ, name, None)
+
+def p_decl_assign(p):
+    "decl : type ID ASSIGN expression"
+    typ = p[1]
+    name = p[2]
+    lineno = p.lineno(2)
+    # declare (may report redeclaration)
+    sym_declare(name, typ, lineno)
+    expr_type = p[4]
+    if not compatible(typ, expr_type):
+        semantic_errors.append((lineno, f"Type error: cannot assign expression of type {type_name(expr_type)} to variable '{name}' of type {type_name(typ)}"))
+    p[0] = ('decl_assign', typ, name, p[4])
+
+# assignment: ID = expr ;
+def p_assign(p):
+    "assign : ID ASSIGN expression"
+    name = p[1]
+    lineno = p.lineno(1)
+    if not sym_exists(name):
+        semantic_errors.append((lineno, f"Undeclared variable '{name}'"))
+        # still try to continue: treat as error type
+        p[0] = ('assign', name, p[3])
+    else:
+        dest_type = sym_get_type(name)
+        expr_type = p[3]
+        if not compatible(dest_type, expr_type):
+            semantic_errors.append((lineno, f"Type error: cannot assign expression of type {type_name(expr_type)} to variable '{name}' of type {type_name(dest_type)}"))
+        p[0] = ('assign', name, p[3])
+
+# type nonterminal
+def p_type_int(p):
+    "type : INT_KW"
+    p[0] = TYPE_INT
+
+def p_type_float(p):
+    "type : FLOAT_KW"
+    p[0] = TYPE_FLOAT
+
+# expressions
 def p_expression_binop(p):
-    '''expression : expression PLUS term
-                  | expression MINUS term'''
-    p[0] = result_type(p[1], p[3])
+    """expression : expression PLUS term
+                  | expression MINUS term"""
+    t1 = p[1]
+    t2 = p[3]
+    p[0] = result_type(t1, t2)
 
 def p_expression_term(p):
-    '''expression : term'''
+    "expression : term"
     p[0] = p[1]
 
 def p_term_binop(p):
-    '''term : term MUL factor
-            | term DIV factor'''
-    p[0] = result_type(p[1], p[3])
+    """term : term TIMES factor
+            | term DIV factor"""
+    t1 = p[1]
+    t2 = p[3]
+    p[0] = result_type(t1, t2)
 
 def p_term_factor(p):
-    '''term : factor'''
+    "term : factor"
     p[0] = p[1]
 
-def p_factor_num(p):
-    '''factor : NUM_INT
-              | NUM_FLOAT'''
-    if isinstance(p[1], int):
-        p[0] = 'int'
-    else:
-        p[0] = 'float'
+def p_factor_num_int(p):
+    "factor : NUM_INT"
+    p[0] = TYPE_INT
+
+def p_factor_num_float(p):
+    "factor : NUM_FLOAT"
+    p[0] = TYPE_FLOAT
 
 def p_factor_id(p):
-    '''factor : ID'''
-    var_name = p[1]
-    if var_name not in symbol_table:
-        print(f"Error semántico: variable '{var_name}' no declarada.")
-        p[0] = 'error'
+    "factor : ID"
+    name = p[1]
+    lineno = p.lineno(1)
+    if not sym_exists(name):
+        semantic_errors.append((lineno, f"Undeclared variable '{name}'"))
+        p[0] = TYPE_ERROR
     else:
-        p[0] = symbol_table[var_name]
+        p[0] = sym_get_type(name)
+
+def p_factor_paren(p):
+    "factor : LPAREN expression RPAREN"
+    p[0] = p[2]
 
 def p_error(p):
     if p:
-        print(f"Error sintáctico en '{p.value}' (línea {p.lineno})")
+        lineno = p.lineno if hasattr(p, 'lineno') else '?'
+        val = p.value if hasattr(p, 'value') else '?'
+        print(f"[Syntax error] Line {lineno}: unexpected token '{val}'")
     else:
-        print("Error sintáctico: fin de archivo inesperado.")
+        print("[Syntax error] Unexpected end of input")
 
-# -----------------------------
-# FUNCIONES AUXILIARES
-# -----------------------------
+# Build parser
+parser = yacc.yacc()
 
-def compatible(dest, src):
-    """Verifica si se puede asignar un tipo a otro"""
-    if dest == src:
-        return True
-    if dest == 'float' and src == 'int':
-        return True  # promoción válida
-    return False
+# ------------------------
+# MAIN / IO
+# ------------------------
+def analyze_file(path):
+    # read input
+    with open(path, 'r', encoding='utf-8') as f:
+        data = f.read()
 
-def result_type(t1, t2):
-    """Determina el tipo resultante de una operación"""
-    if 'error' in (t1, t2):
-        return 'error'
-    if 'float' in (t1, t2):
-        return 'float'
-    return 'int'
+    # attach input to lexer for column calc
+    lexer.lexdata = data
 
-# -----------------------------
-# MAIN
-# -----------------------------
+    print("=== INPUT ===")
+    print(data.rstrip())
+    print("=============\n")
+
+    # --- Mostrar tokens sin consumir el lexer que usará el parser ---
+    print("Tokens (lexical scan):")
+    # Creamos un lexer temporal para inspección (no consumirá el lexer principal)
+    temp_lex = lex.lex()   # crea instancia nueva
+    temp_lex.input(data)
+    for tok in temp_lex:
+        col = find_column(data, tok.lexpos)
+        print(f"  Line {tok.lineno}, col {col}: {tok.type} -> {tok.value}")
+    print("")
+
+    # reset symbol table and errors for fresh analysis
+    global symbol_table, semantic_errors
+    symbol_table = {}
+    semantic_errors = []
+
+    # --- Reiniciamos el lexer principal para el parser ---
+    lexer.input(data)
+    lexer.lexdata = data
+    lexer.lineno = 1
+
+    # parse (and run semantic actions)
+    parser.parse(data, lexer=lexer)
+
+    # print results
+    if semantic_errors:
+        print("\nSemantic / type errors:")
+        for ln, msg in semantic_errors:
+            print(f"  Line {ln}: {msg}")
+    else:
+        print("\nNo semantic errors detected.")
+
+    # symbol table summary
+    print("\nSymbol table:")
+    if symbol_table:
+        for name, info in symbol_table.items():
+            print(f"  {name} : {info['type']}   (declared at line {info['line']})")
+    else:
+        print("  (no symbols)")
+
 if __name__ == '__main__':
-    parser = yacc.yacc()
-
-    code = """
-    int a;
-    float b = 3.14;
-    a = 5;
-    b = a + 2.5;
-    c = 4;
-    int a;
-    a = 3.14;
-    """
-
-    print("=== Análisis Léxico, Sintáctico y Semántico ===")
-    parser.parse(code)
+    if len(sys.argv) < 2:
+        print("Usage: python compiler.py <source-file.txt>")
+        sys.exit(1)
+    analyze_file(sys.argv[1])

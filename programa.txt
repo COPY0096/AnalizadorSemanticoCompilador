@@ -1,0 +1,8 @@
+// Ejemplo de prueba
+int a;
+float b = 3.14;
+a = 5;
+b = a + 2.5;
+c = 4;        // variable no declarada
+int a;        // redeclaración
+a = 3.14;     // error: float -> int (no permitido)

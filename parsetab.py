@@ -6,9 +6,9 @@ _tabversion = '3.10'
 
 _lr_method = 'LALR'
 
-_lr_signature = 'leftPLUSMINUSleftMULDIVASSIGN DIV FLOAT ID INT MINUS MUL NUM_FLOAT NUM_INT PLUS SEMIprogram : stmt_liststmt_list : stmt_list stmt\n                 | stmtstmt : declaration\n            | assignmentdeclaration : type ID SEMI\n                   | type ID ASSIGN expression SEMIassignment : ID ASSIGN expression SEMItype : INT\n            | FLOATexpression : expression PLUS term\n                  | expression MINUS termexpression : termterm : term MUL factor\n            | term DIV factorterm : factorfactor : NUM_INT\n              | NUM_FLOATfactor : ID'
+_lr_signature = 'leftPLUSMINUSleftTIMESDIVASSIGN DIV FLOAT_KW ID INT_KW LPAREN MINUS NUM_FLOAT NUM_INT PLUS RPAREN SEMI TIMESprogram : stmt_liststmt_list : stmt_list stmtstmt_list : stmtstmt : decl SEMIstmt : assign SEMIdecl : type IDdecl : type ID ASSIGN expressionassign : ID ASSIGN expressiontype : INT_KWtype : FLOAT_KWexpression : expression PLUS term\n                  | expression MINUS termexpression : termterm : term TIMES factor\n            | term DIV factorterm : factorfactor : NUM_INTfactor : NUM_FLOATfactor : IDfactor : LPAREN expression RPAREN'
     
-_lr_action_items = {'ID':([0,2,3,4,5,6,8,9,10,12,13,14,22,23,24,25,26,27,],[7,7,-3,-4,-5,11,-9,-10,-2,15,-6,15,-8,15,15,15,15,-7,]),'INT':([0,2,3,4,5,10,13,22,27,],[8,8,-3,-4,-5,-2,-6,-8,-7,]),'FLOAT':([0,2,3,4,5,10,13,22,27,],[9,9,-3,-4,-5,-2,-6,-8,-7,]),'$end':([1,2,3,4,5,10,13,22,27,],[0,-1,-3,-4,-5,-2,-6,-8,-7,]),'ASSIGN':([7,11,],[12,14,]),'SEMI':([11,15,16,17,18,19,20,21,28,29,30,31,],[13,-19,22,-13,-16,-17,-18,27,-11,-12,-14,-15,]),'NUM_INT':([12,14,23,24,25,26,],[19,19,19,19,19,19,]),'NUM_FLOAT':([12,14,23,24,25,26,],[20,20,20,20,20,20,]),'MUL':([15,17,18,19,20,28,29,30,31,],[-19,25,-16,-17,-18,25,25,-14,-15,]),'DIV':([15,17,18,19,20,28,29,30,31,],[-19,26,-16,-17,-18,26,26,-14,-15,]),'PLUS':([15,16,17,18,19,20,21,28,29,30,31,],[-19,23,-13,-16,-17,-18,23,-11,-12,-14,-15,]),'MINUS':([15,16,17,18,19,20,21,28,29,30,31,],[-19,24,-13,-16,-17,-18,24,-11,-12,-14,-15,]),}
+_lr_action_items = {'ID':([0,2,3,6,8,9,10,11,12,14,15,22,24,25,26,27,],[7,7,-3,13,-9,-10,-2,-4,-5,16,16,16,16,16,16,16,]),'INT_KW':([0,2,3,10,11,12,],[8,8,-3,-2,-4,-5,]),'FLOAT_KW':([0,2,3,10,11,12,],[9,9,-3,-2,-4,-5,]),'$end':([1,2,3,10,11,12,],[0,-1,-3,-2,-4,-5,]),'SEMI':([4,5,13,16,17,18,19,20,21,23,29,30,31,32,33,],[11,12,-6,-19,-8,-13,-16,-17,-18,-7,-11,-12,-14,-15,-20,]),'ASSIGN':([7,13,],[14,15,]),'NUM_INT':([14,15,22,24,25,26,27,],[20,20,20,20,20,20,20,]),'NUM_FLOAT':([14,15,22,24,25,26,27,],[21,21,21,21,21,21,21,]),'LPAREN':([14,15,22,24,25,26,27,],[22,22,22,22,22,22,22,]),'TIMES':([16,18,19,20,21,29,30,31,32,33,],[-19,26,-16,-17,-18,26,26,-14,-15,-20,]),'DIV':([16,18,19,20,21,29,30,31,32,33,],[-19,27,-16,-17,-18,27,27,-14,-15,-20,]),'PLUS':([16,17,18,19,20,21,23,28,29,30,31,32,33,],[-19,24,-13,-16,-17,-18,24,24,-11,-12,-14,-15,-20,]),'MINUS':([16,17,18,19,20,21,23,28,29,30,31,32,33,],[-19,25,-13,-16,-17,-18,25,25,-11,-12,-14,-15,-20,]),'RPAREN':([16,18,19,20,21,28,29,30,31,32,33,],[-19,-13,-16,-17,-18,33,-11,-12,-14,-15,-20,]),}
 
 _lr_action = {}
 for _k, _v in _lr_action_items.items():
@@ -17,7 +17,7 @@ for _k, _v in _lr_action_items.items():
       _lr_action[_x][_k] = _y
 del _lr_action_items
 
-_lr_goto_items = {'program':([0,],[1,]),'stmt_list':([0,],[2,]),'stmt':([0,2,],[3,10,]),'declaration':([0,2,],[4,4,]),'assignment':([0,2,],[5,5,]),'type':([0,2,],[6,6,]),'expression':([12,14,],[16,21,]),'term':([12,14,23,24,],[17,17,28,29,]),'factor':([12,14,23,24,25,26,],[18,18,18,18,30,31,]),}
+_lr_goto_items = {'program':([0,],[1,]),'stmt_list':([0,],[2,]),'stmt':([0,2,],[3,10,]),'decl':([0,2,],[4,4,]),'assign':([0,2,],[5,5,]),'type':([0,2,],[6,6,]),'expression':([14,15,22,],[17,23,28,]),'term':([14,15,22,24,25,],[18,18,18,29,30,]),'factor':([14,15,22,24,25,26,27,],[19,19,19,19,19,31,32,]),}
 
 _lr_goto = {}
 for _k, _v in _lr_goto_items.items():
@@ -27,23 +27,24 @@ for _k, _v in _lr_goto_items.items():
 del _lr_goto_items
 _lr_productions = [
   ("S' -> program","S'",1,None,None,None),
-  ('program -> stmt_list','program',1,'p_program','compiler.py',66),
-  ('stmt_list -> stmt_list stmt','stmt_list',2,'p_stmt_list','compiler.py',70),
-  ('stmt_list -> stmt','stmt_list',1,'p_stmt_list','compiler.py',71),
-  ('stmt -> declaration','stmt',1,'p_stmt','compiler.py',74),
-  ('stmt -> assignment','stmt',1,'p_stmt','compiler.py',75),
-  ('declaration -> type ID SEMI','declaration',3,'p_declaration','compiler.py',79),
-  ('declaration -> type ID ASSIGN expression SEMI','declaration',5,'p_declaration','compiler.py',80),
-  ('assignment -> ID ASSIGN expression SEMI','assignment',4,'p_assignment','compiler.py',97),
-  ('type -> INT','type',1,'p_type','compiler.py',109),
-  ('type -> FLOAT','type',1,'p_type','compiler.py',110),
-  ('expression -> expression PLUS term','expression',3,'p_expression_binop','compiler.py',115),
-  ('expression -> expression MINUS term','expression',3,'p_expression_binop','compiler.py',116),
-  ('expression -> term','expression',1,'p_expression_term','compiler.py',120),
-  ('term -> term MUL factor','term',3,'p_term_binop','compiler.py',124),
-  ('term -> term DIV factor','term',3,'p_term_binop','compiler.py',125),
-  ('term -> factor','term',1,'p_term_factor','compiler.py',129),
-  ('factor -> NUM_INT','factor',1,'p_factor_num','compiler.py',133),
-  ('factor -> NUM_FLOAT','factor',1,'p_factor_num','compiler.py',134),
-  ('factor -> ID','factor',1,'p_factor_id','compiler.py',141),
+  ('program -> stmt_list','program',1,'p_program','compiler.py',146),
+  ('stmt_list -> stmt_list stmt','stmt_list',2,'p_stmt_list_multi','compiler.py',150),
+  ('stmt_list -> stmt','stmt_list',1,'p_stmt_list_single','compiler.py',154),
+  ('stmt -> decl SEMI','stmt',2,'p_stmt_decl','compiler.py',158),
+  ('stmt -> assign SEMI','stmt',2,'p_stmt_assign','compiler.py',162),
+  ('decl -> type ID','decl',2,'p_decl_noassign','compiler.py',167),
+  ('decl -> type ID ASSIGN expression','decl',4,'p_decl_assign','compiler.py',175),
+  ('assign -> ID ASSIGN expression','assign',3,'p_assign','compiler.py',188),
+  ('type -> INT_KW','type',1,'p_type_int','compiler.py',204),
+  ('type -> FLOAT_KW','type',1,'p_type_float','compiler.py',208),
+  ('expression -> expression PLUS term','expression',3,'p_expression_binop','compiler.py',213),
+  ('expression -> expression MINUS term','expression',3,'p_expression_binop','compiler.py',214),
+  ('expression -> term','expression',1,'p_expression_term','compiler.py',220),
+  ('term -> term TIMES factor','term',3,'p_term_binop','compiler.py',224),
+  ('term -> term DIV factor','term',3,'p_term_binop','compiler.py',225),
+  ('term -> factor','term',1,'p_term_factor','compiler.py',231),
+  ('factor -> NUM_INT','factor',1,'p_factor_num_int','compiler.py',235),
+  ('factor -> NUM_FLOAT','factor',1,'p_factor_num_float','compiler.py',239),
+  ('factor -> ID','factor',1,'p_factor_id','compiler.py',243),
+  ('factor -> LPAREN expression RPAREN','factor',3,'p_factor_paren','compiler.py',253),
 ]
