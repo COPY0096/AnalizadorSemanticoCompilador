@@ -85,7 +85,7 @@ def t_newline(t):
 
 def t_error(t):
     col = find_column(t.lexer.lexdata, t.lexpos)
-    print(f"[Lexical error] Line {t.lineno}, col {col}: Illegal character '{t.value[0]}'")
+    print(f"[Error léxico] Línea {t.lineno}, col {col}: Carácter ilegal '{t.value[0]}'")
     t.lexer.skip(1)
 
 # Build lexer
@@ -106,7 +106,8 @@ semantic_errors = []
 
 def sym_declare(name, typ, lineno):
     if name in symbol_table:
-        semantic_errors.append((lineno, f"Redeclaration of variable '{name}' (previously declared at line {symbol_table[name]['line']})"))
+        prev_line = symbol_table[name]['line']
+        semantic_errors.append((lineno, f"Redeclaración de la variable '{name}' (declarada previamente en la línea {prev_line})"))
         return False
     symbol_table[name] = {'type': typ, 'line': lineno}
     return True
@@ -180,7 +181,7 @@ def p_decl_assign(p):
     sym_declare(name, typ, lineno)
     expr_type = p[4]
     if not compatible(typ, expr_type):
-        semantic_errors.append((lineno, f"Type error: cannot assign expression of type {type_name(expr_type)} to variable '{name}' of type {type_name(typ)}"))
+        semantic_errors.append((lineno, f"Error de tipo: no se puede asignar una expresión de tipo {type_name(expr_type)} a la variable '{name}' de tipo {type_name(typ)}"))
     p[0] = ('decl_assign', typ, name, p[4])
 
 # assignment: ID = expr ;
@@ -189,14 +190,14 @@ def p_assign(p):
     name = p[1]
     lineno = p.lineno(1)
     if not sym_exists(name):
-        semantic_errors.append((lineno, f"Undeclared variable '{name}'"))
+        semantic_errors.append((lineno, f"Variable no declarada '{name}'"))
         # still try to continue: treat as error type
         p[0] = ('assign', name, p[3])
     else:
         dest_type = sym_get_type(name)
         expr_type = p[3]
         if not compatible(dest_type, expr_type):
-            semantic_errors.append((lineno, f"Type error: cannot assign expression of type {type_name(expr_type)} to variable '{name}' of type {type_name(dest_type)}"))
+            semantic_errors.append((lineno, f"Error de tipo: no se puede asignar una expresión de tipo {type_name(expr_type)} a la variable '{name}' de tipo {type_name(dest_type)}"))
         p[0] = ('assign', name, p[3])
 
 # type nonterminal
@@ -244,7 +245,7 @@ def p_factor_id(p):
     name = p[1]
     lineno = p.lineno(1)
     if not sym_exists(name):
-        semantic_errors.append((lineno, f"Undeclared variable '{name}'"))
+        semantic_errors.append((lineno, f"Variable no declarada '{name}'"))
         p[0] = TYPE_ERROR
     else:
         p[0] = sym_get_type(name)
@@ -257,9 +258,9 @@ def p_error(p):
     if p:
         lineno = p.lineno if hasattr(p, 'lineno') else '?'
         val = p.value if hasattr(p, 'value') else '?'
-        print(f"[Syntax error] Line {lineno}: unexpected token '{val}'")
+        print(f"[Error sintáctico] Línea {lineno}: token inesperado '{val}'")
     else:
-        print("[Syntax error] Unexpected end of input")
+        print("[Error sintáctico] Fin inesperado de la entrada")
 
 # Build parser
 parser = yacc.yacc()
@@ -275,18 +276,18 @@ def analyze_file(path):
     # attach input to lexer for column calc
     lexer.lexdata = data
 
-    print("=== INPUT ===")
+    print("=== ENTRADA ===")
     print(data.rstrip())
     print("=============\n")
 
     # --- Mostrar tokens sin consumir el lexer que usará el parser ---
-    print("Tokens (lexical scan):")
+    print("Tokens (análisis léxico):")
     # Creamos un lexer temporal para inspección (no consumirá el lexer principal)
     temp_lex = lex.lex()   # crea instancia nueva
     temp_lex.input(data)
     for tok in temp_lex:
         col = find_column(data, tok.lexpos)
-        print(f"  Line {tok.lineno}, col {col}: {tok.type} -> {tok.value}")
+        print(f"  Línea {tok.lineno}, col {col}: {tok.type} -> {tok.value}")
     print("")
 
     # reset symbol table and errors for fresh analysis
@@ -304,22 +305,22 @@ def analyze_file(path):
 
     # print results
     if semantic_errors:
-        print("\nSemantic / type errors:")
+        print("\nErrores semánticos/de tipo:")
         for ln, msg in semantic_errors:
-            print(f"  Line {ln}: {msg}")
+            print(f"  Línea {ln}: {msg}")
     else:
-        print("\nNo semantic errors detected.")
+        print("\nNo se detectaron errores semánticos.")
 
     # symbol table summary
-    print("\nSymbol table:")
+    print("\nTabla de símbolos:")
     if symbol_table:
         for name, info in symbol_table.items():
-            print(f"  {name} : {info['type']}   (declared at line {info['line']})")
+            print(f"  {name} : {info['type']}   (declarada en la línea {info['line']})")
     else:
-        print("  (no symbols)")
+        print("  (sin símbolos)")
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
-        print("Usage: python compiler.py <source-file.txt>")
+        print("Uso: python compiler.py <archivo-fuente.txt>")
         sys.exit(1)
     analyze_file(sys.argv[1])
