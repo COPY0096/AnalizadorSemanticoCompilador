@@ -1,23 +1,3 @@
-#!/usr/bin/env python3
-"""
-compiler.py
-Analizador léxico + sintáctico + semántico simple usando PLY.
-
-Uso:
-    python compiler.py programa.txt
-
-Lenguaje soportado (mini):
-- Declaraciones: int id;  float id;  int id = expr;
-- Asignaciones: id = expr;
-- Expresiones: suma/resta/mul/div, números enteros y reales, paréntesis, identificadores
-- Comentarios: // hasta fin de línea
-
-Chequeos semánticos:
-- variable no declarada
-- redeclaración
-- incompatibilidad de tipos (float -> int) => error
-- promoción automática int -> float aceptada
-"""
 
 import sys
 import ply.lex as lex
